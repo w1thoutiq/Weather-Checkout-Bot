@@ -10,4 +10,10 @@ cur.execute("""CREATE TABLE IF NOT EXISTS base(
     active BOOLEAN
     )""")
 
+cur.execute("""CREATE TABLE IF NOT EXISTS alerts_base(
+    id BIGINT unique,
+    username TEXT,
+    city TEXT
+    )""")
+
 con.commit()
