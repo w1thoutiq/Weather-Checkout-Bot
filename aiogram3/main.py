@@ -17,11 +17,9 @@ from core.middlewares.filters import IsAdmin
 
 
 async def start():
-
     bot = Bot(token=settings.bots.bot_token, parse_mode='HTML')
     dp = Dispatcher()
     scheduler = AsyncIOScheduler(timezone='Europe/Moscow')
-
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s - [%(levelname)s] - %(name)s - "
@@ -42,11 +40,12 @@ async def start():
     dp.message.register(cmd_developer, Command(commands=['developer']))
     dp.message.register(cmd_manage, Command(commands=['manage']))
     dp.message.register(cmd_message, IsAdmin() and Command(commands=['message']))
+    dp.message.register(call_alerts_message, IsAdmin() and Command(commands=['alerts']))
     dp.message.register(weather, F.text.lower() == 'погода')
     dp.message.register(second_step_alert, F.text and StateAlerts.subscribe)
     dp.message.register(set_city, F.text and StateSet.city)
     dp.message.register(unknown_message_text, F.text)
-    dp.message.register(unknown_message, F.any)
+    dp.message.register(unknown_message)
 
     # Обработка callback-ов
     dp.callback_query.register(weather_with_button, F.data.startswith('weather_'))

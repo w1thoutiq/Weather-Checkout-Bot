@@ -1,16 +1,11 @@
-import sys
-
-from aiogram.fsm.context import FSMContext
 from requests import get
 from aiogram import Bot
 from aiogram.types import Message, CallbackQuery
 from aiogram.types import BotCommand, BotCommandScopeDefault
-sys.path.append('C:\\Users\\withoutiq\\PycharmProjects\\WeatherCheckoutBot\\New-Weather-bot\\')
+from core.settings import settings
 from core.utils.database import *
-from core.utils.states import *
 from core.keyboards.inline import *
 from core.keyboards.reply import *
-from core.utils.states import *
 
 
 async def my_city(message: [Message, CallbackQuery], bot: Bot):  # Обычный вывод установленного города
@@ -24,13 +19,6 @@ async def my_city(message: [Message, CallbackQuery], bot: Bot):  # Обычны�
             chat_id=message.message.chat.id,
             text=f'Установленные регионы:',
             reply_markup=weather_btn(city))
-
-
-# async def first_set_city(message: [Message, CallbackQuery], bot: Bot, state: FSMContext=None):
-#     await bot.send_message(
-#         chat_id=message.message.chat.id,
-#         text=f'Отправь свой населенный пункт')
-#     await state.set_state(StateSet.city)
 
 
 async def get_weather_for_cities(call: [Message, CallbackQuery], bot: Bot):
@@ -68,11 +56,6 @@ async def get_weather(city):
         return
 
 
-async def first_step_for_alert(call: CallbackQuery):
-    await call.message.edit_text(text=f'Отправь регион для рассылки')
-    await StateAlerts.subscribe.set()
-
-
 # Установка меню
 async def set_default_commands(bot: Bot):
     return await bot.set_my_commands(
@@ -87,21 +70,31 @@ async def set_default_commands(bot: Bot):
 
 
 async def alerts_message(bot: Bot):
+    count = 0
     try:
         cur.execute(f"SELECT id FROM alerts_base")
         users = [user[0] for user in cur.fetchall()]
         for user in users:
-            cur.execute(f'SELECT city FROM alerts_base WHERE id={user}')
-            city = cur.fetchone()[0]
-            await bot.send_message(
-                chat_id=user,
-                text=await get_weather(city),
-                parse_mode='HTML'
-            )
+            try:
+                cur.execute(f'SELECT city FROM alerts_base WHERE id={user}')
+                city = cur.fetchone()[0]
+                await bot.send_message(
+                    chat_id=user,
+                    text=await get_weather(city),
+                    parse_mode='HTML'
+                )
+                count += 1
+                cur.execute("SELECT active FROM base WHERE id =?", (user,))
+                if int(cur.fetchone()[0]) == 0:
+                    cur.execute(f"UPDATE base SET active = {1} WHERE id =?", (user,))
+                    con.commit()
+            except Exception as e:
+                print(e)
+                cur.execute("UPDATE base SET active = 0 WHERE id =?", (user,))
+                con.commit()
+    finally:
         await bot.send_message(
-            chat_id=790528433,
-            text="Рассылка завершена",
+            chat_id=settings.bots.admin_id,
+            text=f"Рассылка завершена:\n\rЧисло сообщений: {count}",
             parse_mode='HTML'
         )
-    except:
-        pass

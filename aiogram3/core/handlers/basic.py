@@ -1,7 +1,4 @@
-import sys
 from aiogram import Bot
-
-sys.path.append('C:\\Users\\withoutiq\\PycharmProjects\\WeatherCheckoutBot\\New-Weather-bot\\')
 from core.settings import settings
 
 

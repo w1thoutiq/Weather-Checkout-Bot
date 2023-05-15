@@ -1,9 +1,6 @@
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
 from aiogram import Bot
-
-import sys
-sys.path.append('C:\\Users\\withoutiq\\PycharmProjects\\WeatherCheckoutBot\\New-Weather-bot\\')
 from core.utils.simple_func import *
 from core.keyboards.inline import *
 from core.keyboards.reply import *
@@ -81,18 +78,19 @@ async def cmd_developer(message: Message, bot: Bot):
 
 
 # Функция для обработки /message
-async def cmd_message(message: Message):
+async def cmd_message(message: Message, bot: Bot):
     cur.execute("SELECT id FROM base")
     for user_id in cur.fetchall():
         user_id = user_id[0]
         try:
-            await get_weather_for_cities(message)
+            await get_weather_for_cities(call=message, bot=bot)
             cur.execute("SELECT active FROM base WHERE id =?", (user_id,))
             if int(cur.fetchone()[0]) == 0:
                 cur.execute(f"UPDATE base SET active = {1} WHERE id =?", (user_id,))
                 con.commit()
             cur.execute("UPDATE base SET active = 0 WHERE id =?", (user_id,))
-        except:
+        except Exception as e:
+            print(e)
             con.commit()
     await message.answer("Рассылка завершена")
 
@@ -105,20 +103,24 @@ async def weather(message: Message):  # Выводим данные погоды
                          reply_markup=weather_btn(cities))
 
 
+async def call_alerts_message(message: Message, bot: Bot):
+    await alerts_message(bot=bot)
+
+
 # state=StateAlerts.subscribe
 async def second_step_alert(message: Message, state: FSMContext):
     if message.text.lower() == 'отмена':
         await state.clear()
-        await message.answer(f'Главное меню', reply_markup=set_city_menu())
+        await message.answer(f'Главное меню', reply_markup=menu())
     else:
         city = message.text.capitalize()
         try:  # Обработка ошибки если такого региона не существует
             if await get_weather(city) is None:
                 raise ValueError
             cur.execute(f"REPLACE INTO alerts_base(id, username, city) VALUES ("
-                        f"'{message.from_user.id}',"
-                        f"'{message.from_user.username}',"
-                        f"'{city}')")
+                        f'"{message.from_user.id}",'
+                        f'"{message.from_user.username}",'
+                        f'"{city}");')
             con.commit()
             data= await state.get_data()
             call = data.get('call')
@@ -155,12 +157,13 @@ async def set_city(message: Message, state: FSMContext):
 # Обработка любого текста, если есть город, тогда вернет погоду пользователю
 async def unknown_message_text(message: Message):
     try:
-        city = message["text"].capitalize()
+        city = message.text.capitalize()
         await message.answer(
             text=await get_weather(city),
             parse_mode='HTML'
         )
-    except:
+    except Exception as e:
+        print(e)
         await message.reply(f'\U0001F915 Страна или регион указан неверно!')
 
 

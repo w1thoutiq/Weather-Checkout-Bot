@@ -1,13 +1,10 @@
-import sys
-
 from aiogram import Bot
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery
-
-sys.path.append('C:\\Users\\withoutiq\\PycharmProjects\\WeatherCheckoutBot\\New-Weather-bot\\')
 from core.utils.simple_func import *
 from core.keyboards.inline import *
 from core.utils.database import *
+from core.utils.states import *
 
 
 # startswith='weather_'
