@@ -1,19 +1,15 @@
-from aiogram.dispatcher.filters.state import State, StatesGroup
-from aiogram.dispatcher.filters import Text, IDFilter
-from aiogram.dispatcher import FSMContext
-# from apscheduler.schedulers.asyncio import AsyncIOScheduler
+import aiogram
+from aiogram.fsm.state import State, StatesGroup
+from aiogram.filters import Text
+from aiogram.fsm.context import FSMContext
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from datetime import datetime as dt
 from aiogram.types import CallbackQuery
 from aiogram import types
 from requests import get
 from main import dp, bot
 from Keyboards import *
 from database import cur, con
-from filters import *
-
-# scheduler = AsyncIOScheduler()
-# scheduler.add_job(get_weather,x  'cron', day_of_week='mon-sun', hour=09, minute=00, end_date='2025-10-13')
-# И затем scheduler.start(), только перед стартом пуллинга.
-# Рабочий вариант, проверено. Если сделать привязку к бд, то задачи можно добавлять «на горячую».
 
 
 class _State(StatesGroup):
@@ -93,7 +89,7 @@ async def send_developer(message: types.Message):
 
 
 # Только для администратора. Рассылка погоды для пользователей и их установленных городов
-@dp.message_handler(IDFilter(790528433), commands=['message'])
+@dp.message_handler(lambda message: message.from_user.id == 790528433, commands=['message'])
 async def send_message(message: types.Message):
     cur.execute("SELECT id FROM base")
     for user_id in cur.fetchall():
@@ -110,7 +106,7 @@ async def send_message(message: types.Message):
     await message.answer("Рассылка завершена")
 
 
-@dp.message_handler(Text(equals='Погода', ignore_case=True))
+@dp.message_handler(Text(text='Погода', ignore_case=True))
 async def weather(message: types.Message):  # Выводим данные погоды для установленного города
     cur.execute(f"SELECT city FROM base WHERE id={message.from_user.id}")
     cities = cur.fetchone()[0].split(', ')
@@ -118,26 +114,10 @@ async def weather(message: types.Message):  # Выводим данные пог
                          reply_markup=weather_btn(cities))
 
 
-@dp.callback_query_handler(Text(startswith='alerts_'))
-async def call_alerts(call: CallbackQuery, state: FSMContext):
-    async with state.proxy() as data:
-        data['call'] = call
-    await call.answer()
-    action = call.data.split('alerts_')[1]
-    if action == 'unsubscribe':
-        cur.execute(f'DELETE FROM alerts_base WHERE id={call.from_user.id}')
-        con.commit()
-        await call.message.edit_text(text='Удалил вас из рассылки', reply_markup=set_city_menu())
-    elif action == 'subscribe':
-        await first_step_for_alert(call)
-    elif action == 'cancel':
-        await call.message.edit_text(text='Главное меню', reply_markup=set_city_menu())
-
-
 @dp.message_handler(content_types='text', state=StateAlerts.subscribe)
 async def second_step_alert(message: types.Message, state: FSMContext):
     if message.text.lower() == 'отмена':
-        await state.finish()
+        await state.clear()
         await message.answer(f'Главное меню', reply_markup=set_city_menu())
     else:
         city = message.text.capitalize()
@@ -151,11 +131,15 @@ async def second_step_alert(message: types.Message, state: FSMContext):
             con.commit()
             async with state.proxy() as data:
                 call = data['call']
-            await bot.edit_message_text(
-                message_id=call.message.message_id,
-                chat_id=call.message.chat.id,
+            # await bot.edit_message_text(
+            #     message_id=call.message.message_id,
+            #     chat_id=call.message.chat.id,
+            #     text='Вы подписаны на рассылку 🎉',
+            #     reply_markup=set_city_menu())
+            await call.message.edit_text(
                 text='Вы подписаны на рассылку 🎉',
-                reply_markup=set_city_menu())
+                reply_markup=set_city_menu()
+            )
             await state.finish()
         except ValueError:
             await message.reply(f'Что-то пошло не так! \U0001F915'
@@ -195,11 +179,6 @@ async def unknown_message_text(message: types.Message):
         )
     except:
         await message.reply(f'\U0001F915 Страна или регион указан неверно!')
-
-
-# @dp.message_handler(CorrectTime(), content_types='any')
-# async def correct_time_msg(message):
-#     await get_weather_for_cities(message)
 
 
 @dp.message_handler(content_types='any')  # Обработка любого типа сообщений, что-бы избежать лишних ошибок
@@ -302,21 +281,23 @@ async def kb_set(call, state: FSMContext):
     await state.finish()
 
 
-# @dp.callback_query_handler(Text(startswith='alerts_'))
-# async def call_alerts(call: CallbackQuery, state: FSMContext):
-#     await call.answer()
-#     action = call.data.split('alerts_')[1]
-#     if action == 'unsubscribe':
-#         cur.execute(f'DELETE FROM alerts_base WHERE id={call.from_user.id}')
-#         con.commit()
-#         await call.message.edit_text(text='Удалил вас из рассылки', reply_markup=set_city_menu())
-#     elif action == 'subscribe':
-#         async with state.proxy() as data:
-#             data['message_id'] = call.message.message_id
-#             data['chat_id'] = call.message.chat.id
-#         await first_step_for_alert(call)
-#     elif action == 'cancel':
-#         await call.message.edit_text(text='Главное меню', reply_markup=set_city_menu())
+@dp.callback_query_handler(Text(startswith='alerts_'))
+async def call_alerts(call: CallbackQuery, state: FSMContext):
+    async with state.proxy() as data:
+        data['call'] = call
+    await call.answer()
+    action = call.data.split('alerts_')[1]
+    if action == 'unsubscribe':
+        cur.execute(f'DELETE FROM alerts_base WHERE id={call.from_user.id}')
+        con.commit()
+        await call.message.edit_text(text='Удалил вас из рассылки', reply_markup=set_city_menu())
+    elif action == 'subscribe':
+        await first_step_for_alert(call)
+    elif action == 'cancel':
+        await call.message.edit_text(
+            text='Главное меню',
+            reply_markup=set_city_menu()
+        )
 
 
 # functions
@@ -418,13 +399,24 @@ async def alerts_message():
         pass
 
 
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from datetime import datetime as dt, timedelta
+async def startup(robot) -> send_message:
+    return await robot.send_message(
+        chat_id=790528433,
+        text="Бот запущен!"
+    )
+
+
+async def shutting_off(robot) -> send_message:
+    return await robot.send_message(
+        chat_id=790528433,
+        text="Бот выключен!"
+    )
+
 
 
 scheduler = AsyncIOScheduler(timezone='Europe/Moscow')
 
-scheduler.add_job(alerts_message, trigger='date', run_date=dt.now()+timedelta(seconds=1))
+# scheduler.add_job(alerts_message, trigger='date', run_date=dt.now()+timedelta(seconds=1))
 
 scheduler.add_job(alerts_message, trigger='cron', hour='07', minute='00', start_date=dt.now())
 
