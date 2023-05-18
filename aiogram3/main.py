@@ -3,9 +3,11 @@ import logging
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from datetime import datetime as dt
+from datetime import timedelta
 
 from aiogram import Dispatcher, F, Bot
 from aiogram.filters import Command
+from aiogram.utils.chat_action import ChatActionMiddleware
 
 from core.handlers.basic import startup, shutting_off
 from core.utils.simple_func import alerts_message
@@ -14,6 +16,9 @@ from core.handlers.message import *
 from core.settings import settings
 from core.utils.states import *
 from core.middlewares.filters import IsAdmin
+from core.utils.session_db import *
+from core.utils.connect_db import *
+from core.utils.graph import graph, temperature_graph
 
 
 async def start():
@@ -25,14 +30,30 @@ async def start():
         format="%(asctime)s - [%(levelname)s] - %(name)s - "
                "(%(filename)s).%(funcName)s(%(lineno)d) - %(message)s")
 
+    # today = dt.now().day + timedelta(days=1)
     # Сообщения по расписанию
     scheduler.add_job(alerts_message, trigger='cron', hour='07', minute='00', start_date=dt.now(), kwargs={'bot':bot})
     scheduler.add_job(alerts_message, trigger='cron', hour='13', minute='00', start_date=dt.now(), kwargs={'bot':bot})
     scheduler.add_job(alerts_message, trigger='cron', hour='17', minute='00', start_date=dt.now(), kwargs={'bot':bot})
 
+    # Сбор статистики
+    scheduler.add_job(temperature_graph, trigger='cron', hour='00', minute='00', start_date=dt.now())
+    scheduler.add_job(graph, trigger='cron', hour='00', minute='00', start_date=dt.now())
+    scheduler.add_job(graph, trigger='cron', hour='03', minute='00', start_date=dt.now())
+    scheduler.add_job(graph, trigger='cron', hour='06', minute='00', start_date=dt.now())
+    scheduler.add_job(graph, trigger='cron', hour='09', minute='00', start_date=dt.now())
+    scheduler.add_job(graph, trigger='cron', hour='12', minute='00', start_date=dt.now())
+    scheduler.add_job(graph, trigger='cron', hour='15', minute='00', start_date=dt.now())
+    scheduler.add_job(graph, trigger='cron', hour='18', minute='00', start_date=dt.now())
+    scheduler.add_job(graph, trigger='cron', hour='21', minute='00', start_date=dt.now())
+
     # Функции для запуска и завершения работы бота
     dp.startup.register(startup)
     dp.shutdown.register(shutting_off)
+
+    # Обработка middlewares
+    dp.message.middleware(ChatActionMiddleware())
+    dp.callback_query.middleware(ChatActionMiddleware())
 
     # Обработка сообщений
     dp.message.register(cmd_start, Command(commands=['start']))
@@ -56,6 +77,7 @@ async def start():
     dp.callback_query.register(call_alerts, F.data.startswith('alerts_'))
 
     try:
+        global_init('DataBase.db')
         scheduler.start()
         await dp.start_polling(bot)
 
