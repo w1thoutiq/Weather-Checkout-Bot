@@ -12,7 +12,7 @@ from core.utils.states import *
 async def weather_with_button(call: CallbackQuery, bot: Bot):
     await call.answer()
     city = call.data.split('weather_')[1]
-    await get_weather(city)
+    get_weather(city)
     if city == 'cancel':
         await bot.delete_message(message_id=call.message.message_id,
                                  chat_id=call.message.chat.id)
@@ -24,7 +24,7 @@ async def weather_with_button(call: CallbackQuery, bot: Bot):
         )
     else:
         await bot.send_message(chat_id=call.message.chat.id,
-                               text=await get_weather(city),
+                               text=get_weather(city),
                                parse_mode='HTML')
 
 

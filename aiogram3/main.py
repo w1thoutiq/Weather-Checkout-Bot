@@ -21,6 +21,7 @@ from core.utils.connect_db import *
 from core.utils.graph import graph, temperature_graph
 
 
+
 async def start():
     bot = Bot(token=settings.bots.bot_token, parse_mode='HTML')
     dp = Dispatcher()
@@ -77,7 +78,6 @@ async def start():
     dp.callback_query.register(call_alerts, F.data.startswith('alerts_'))
 
     try:
-        global_init('DataBase.db')
         scheduler.start()
         await dp.start_polling(bot)
 

@@ -50,8 +50,7 @@ async def get_weather_for_cities(user_id: int, bot: Bot, chat_id: int):
     return
 
 
-@flags.chat_action("typing")
-async def get_weather(city, for_graph=False):
+def get_weather(city, for_graph=False):
     try:
         url = 'https://api.openweathermap.org/data/2.5/weather'
         api_of_weather = '352c751a80237a51813f0ae93d864822'
@@ -62,7 +61,7 @@ async def get_weather(city, for_graph=False):
         result = get(url, params=params).json()
         info = result['main']['temp'], result['main']['feels_like'], result['weather'][0]['description'], result['name']
         if for_graph is True:
-            return int(info[3])
+            return int(info[0])
         message_text = f'Погода в регионе <strong>{info[3]}</strong>:\n' \
                        f'<em><strong>{info[0]} °C, ощущается как {info[1]}°C, {info[2]}</strong></em>'
         return message_text

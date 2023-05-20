@@ -135,7 +135,7 @@ async def second_step_alert(message: Message, state: FSMContext):
         with create_session() as db:
             city = message.text.capitalize()
             try:  # Обработка ошибки если такого региона не существует
-                if await get_weather(city) is None:
+                if get_weather(city) is None:
                     raise ValueError
                 if db.query(Alert).where(Alert.id == int(message.from_user.id)).first() is None:
                     db.add(Alert(
@@ -174,7 +174,7 @@ async def set_city(message: Message, state: FSMContext):
     else:
         city = message.text.capitalize()
         try:  # Обработка ошибки если такого региона не существует
-            if await get_weather(city) is None:
+            if get_weather(city) is None:
                 raise ValueError
             await state.update_data(city=city)
             await message.answer(text=f'Что ты хочешь сделать с этим регионом?', reply_markup=add_city_menu())
@@ -189,7 +189,7 @@ async def unknown_message_text(message: Message):
     try:
         city = message.text.capitalize()
         await message.answer(
-            text=await get_weather(city),
+            text=get_weather(city),
             parse_mode='HTML'
         )
     except Exception as e:
